@@ -1,100 +1,126 @@
-# 📊 QSS Intern Learning
+# Rain Tomorrow Prediction — Neural Network (Australia Weather)
 
-### Data Science & Machine Learning Internship Journey
+A binary classification project that predicts whether it will rain tomorrow (`RainTomorrow`) using historical weather observations from 49 locations across Australia. Built as a first hands-on neural network project with Keras/TensorFlow.
 
-*My learning journey through Python for Data Analysis, Visualization, and Machine Learning*
+## Dataset
 
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![Pandas](https://img.shields.io/badge/Pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
-![NumPy](https://img.shields.io/badge/NumPy-013243?style=for-the-badge&logo=numpy&logoColor=white)
-![Matplotlib](https://img.shields.io/badge/Matplotlib-11557C?style=for-the-badge&logo=plotly&logoColor=white)
-![Seaborn](https://img.shields.io/badge/Seaborn-4C72B0?style=for-the-badge)
-![Scikit-Learn](https://img.shields.io/badge/scikit--learn-F7931E?style=for-the-badge&logo=scikitlearn&logoColor=white)
-![Jupyter](https://img.shields.io/badge/Jupyter-F37626?style=for-the-badge&logo=jupyter&logoColor=white)
+- **Source:** [weatherAUS.csv](https://www.kaggle.com/datasets/jsphyg/weather-dataset-rattle-package) — ~10 years (2008–2017) of daily weather observations from the Australian Bureau of Meteorology.
+- **Size:** 145,460 rows × 23 columns (raw).
+- **Target:** `RainTomorrow` (Yes/No) — whether it rained the following day.
 
----
+## Methodology
 
-## 📌 About
+### 1. Exploratory Data Analysis
+- Checked missing-value rates per column (some columns, e.g. `Sunshine`, `Cloud9am/3pm`, were 38–48% empty).
+- Measured correlation of each feature with the target to prioritize which sparse columns were worth keeping vs. dropping.
 
-This repository documents the data science and machine learning topics I learned step by step during my **internship at QSS**. Each week focused on a new topic or library, reinforcing the theory with hands-on examples on real datasets.
+### 2. Feature Engineering & Cleaning
+| Step | Decision | Reasoning |
+|---|---|---|
+| `Evaporation` | Dropped | Weak correlation with target (-0.12) + high missingness (43%) |
+| `Temp9am`, `Temp3pm`, `Pressure9am` | Dropped | Highly correlated (0.86–0.98) with `MaxTemp`/`Pressure3pm`, largely redundant |
+| `TempRange` | Created (`MaxTemp - MinTemp`) | Stronger signal (corr ≈ -0.34) than any single raw temp column — diurnal range is a meaningful meteorological indicator |
+| `Sunshine`, `Cloud9am/3pm`, and other numeric columns | Imputed via `Location + Month` group median | Captures regional/seasonal patterns better than a single global median |
+| `WindGustDir`, `WindDir9am`, `WindDir3pm` | Imputed via `Location + Month` group mode, then encoded as sin/cos of compass angle | Wind direction is cyclical (N and NNW are adjacent, not distant); sin/cos preserves that circularity |
+| `Date` (month) | Encoded as sin/cos of month | Same cyclical reasoning (December and January are adjacent) |
+| `Location` | One-hot encoded (49 categories) | No ordinal relationship between locations |
+| `RainToday`, `RainTomorrow` | Mapped Yes/No → 1/0 | Numeric input required for the network |
+| Rows with missing `RainTomorrow` or `RainToday` | Dropped (~4.6k rows total) | No reliable way to recover/impute the label without introducing bias |
 
-The goal was to learn and practice an **end-to-end data science workflow** — from processing raw data, to visualizing it, to building machine learning models.
+Final feature set: **73 columns** after encoding.
 
----
+### 3. Train/Test Split
+Split **chronologically** (not randomly) — last ~20% of dates held out as the test set (cutoff: 2015-11-10). This simulates the real-world scenario of training on the past and predicting the future, and avoids leaking future information into training.
 
-## 🎯 Topics Learned
+- Train: 112,668 rows
+- Test: 28,119 rows
 
-| Area | Topics |
+### 4. Scaling
+`StandardScaler` fit **only on the training set**, then applied to both train and test, to avoid data leakage. Applied only to continuous numeric columns (temperature, humidity, pressure, etc.) — one-hot and sin/cos columns were left untouched since they're already in a bounded, meaningful range.
+
+### 5. Model Architecture
+
+```
+Input (73 features)
+  → Dense(64, activation='relu')
+  → Dense(32, activation='relu')
+  → Dense(1, activation='sigmoid')
+```
+
+- **Loss:** `binary_crossentropy`
+- **Optimizer:** `adam`
+- **Regularization:** `EarlyStopping` (`monitor='val_loss'`, `patience=5`, `restore_best_weights=True`) to prevent overfitting
+- **Total parameters:** 6,721
+
+## Training
+
+The model was set up to train for up to 50 epochs, but `EarlyStopping` halted training at **epoch 11**, once validation loss stopped improving for 5 consecutive epochs (best validation loss was reached around epoch 6; the final model weights were restored from that point).
+
+<p align="center">
+  <img src="images/accuracy_plot.png" width="420"/>
+  <img src="images/loss_plot.png" width="420"/>
+</p>
+
+Training accuracy kept climbing after epoch 6 while validation accuracy/loss plateaued and slightly worsened — a sign the model was starting to overfit, which is exactly what `EarlyStopping` + `restore_best_weights` is designed to catch and correct for.
+
+## Results
+
+Evaluated on the held-out (chronological) test set:
+
+| Metric | Score |
 |---|---|
-| 🐍 **Python Basics** | Variables, loops, functions, data structures |
-| 🔢 **NumPy** | Arrays, vectorized operations, mathematical operations |
-| 🐼 **Pandas** | DataFrame operations, data cleaning, filtering, grouping (`groupby`), handling missing data |
-| 📈 **Matplotlib** | Line, bar, and scatter plots; axis/label customization |
-| 🎨 **Seaborn** | Statistical visualization, heatmaps, distribution plots |
-| 🤖 **Scikit-Learn** | Regression and classification models, model training/testing workflow, data preprocessing |
-| 📉 **Regression Models** | Linear Regression, Logistic Regression |
-| 🌳 **Tree-Based Models** | Decision Trees, Random Forest |
-| 🚀 **Ensemble Learning** | Bagging, Boosting (e.g. Gradient Boosting, AdaBoost) |
-| 🎛️ **Model Optimization** | Hyperparameter tuning, Grid Search / Random Search, Cross-Validation |
-| 📊 **Model Evaluation** | Train/test split, accuracy, confusion matrix, R² score |
-| 🔍 **Unsupervised Learning** | Clustering methods (e.g. K-Means) |
----
+| Test accuracy | 86.0% |
+| Test loss | 0.327 |
 
-## 📁 Project Structure
+**Confusion matrix:**
+
+<p align="center">
+  <img src="images/confusion_matrix.png" width="420"/>
+</p>
+
+**Classification report:**
+
+| Class | Precision | Recall | F1-score | Support |
+|---|---|---|---|---|
+| No rain (0) | 0.89 | 0.94 | 0.91 | 21,909 |
+| Rain (1) | 0.73 | 0.57 | 0.64 | 6,210 |
+
+**Note on class imbalance:** The dataset is imbalanced (~76% "No rain" days), so overall accuracy alone is not fully representative. The model performs noticeably better at identifying non-rainy days (recall 0.94) than rainy days (recall 0.57) — a common pattern in imbalanced classification that could be improved with techniques like class weighting, oversampling (SMOTE), or threshold tuning.
+
+## Repository Structure
 
 ```
-QssInternLearning/
-│
-├── Week2-Matplot.ipynb                     # Data visualization with Matplotlib
-│
-├── Week3-Pandas.ipynb                      # Introduction to Pandas
-├── Week3-Pandas-Titanic.ipynb              # Pandas practice with the Titanic dataset
-├── Week3-Pandas-Netflix.ipynb              # Pandas practice with the Netflix dataset
-├── Week3-Pandas-HarryPotter.ipynb          # Pandas practice with the Harry Potter dataset
-│
-├── Week4-LinearRegression/                 # Linear Regression model work
-├── Week4-LinearRegression_Another_Data/    # Regression practice with another dataset
-├── HousePrices-LinearRegression.ipynb      # House price prediction (regression project)
-│
-├── Week5-Income-HomeWork/                  # Income dataset assignment/analysis
-│
-├── Week_midterm_exam/                      # Midterm exam / assessment work
-│
-└── w7_Unsupervised/                        # Unsupervised learning (clustering) work
+.
+├── Week9-Case.ipynb      # Main notebook: cleaning, feature engineering, model, evaluation
+├── weatherAUS.csv        # Dataset (not included — see Dataset section for source)
+├── README.md
+└── images/
+    ├── accuracy_plot.png
+    ├── loss_plot.png
+    └── confusion_matrix.png
 ```
 
----
-
-## 📊 Datasets Used
-
-- 🚢 **Titanic** — Passenger data for cleaning and analysis
-- 🎬 **Netflix** — Content data analysis
-- ⚡ **Harry Potter** — Character/data analysis
-- 🏠 **House Prices** — House price prediction (regression)
-- 💰 **Income Data** — Income analysis
-
----
-
-## ⚙️ Setup & Usage
-
-To run the notebooks on your own machine:
+## How to Run
 
 ```bash
-# Clone the repo
-git clone https://github.com/uzeyirelivasli/QssInternLearning.git
-cd QssInternLearning
-
-# Install the required libraries
-pip install pandas numpy matplotlib seaborn scikit-learn jupyter
-
-# Launch Jupyter Notebook
-jupyter notebook
+pip install pandas numpy scikit-learn tensorflow matplotlib
+jupyter notebook Week9-Case.ipynb
 ```
 
----
+Place `weatherAUS.csv` in the same directory as the notebook before running.
 
-## 📬 Contact
+## Requirements
 
-Feel free to reach out with any questions or feedback.
+- Python 3.9+
+- pandas
+- numpy
+- scikit-learn
+- tensorflow / keras
+- matplotlib
 
-**⭐ If you find this repo useful, consider giving it a star!**
+## Possible Improvements
+
+- Address class imbalance (class weights, SMOTE, or adjusting the decision threshold below 0.5 to boost rain-day recall)
+- Hyperparameter tuning (layer sizes, dropout, learning rate)
+- Try alternative architectures or gradient-boosted tree baselines (XGBoost/LightGBM) for comparison
+- Cross-validation with multiple chronological folds instead of a single split
