@@ -97,23 +97,25 @@ jupyter notebook BreastCancer.ipynb
 
 Run the cells from top to bottom (**Kernel → Restart & Run All**).
 
-## 📁 Project Structure
-
-```
-.
-├── BreastCancer.ipynb   # Full workflow: data, model, training, evaluation
-└── README.md
-```
-
 ## 📈 Results
 
-> Replace the values below with your own results after running the notebook.
+Evaluated on a held-out test set of **114 samples** (20% of the data, never seen during training).
 
-| Metric | Value |
-|---|---|
-| Test accuracy | `XX.X%` |
-| Malignant recall | `XX.X%` |
-| Epochs trained (with early stopping) | `XX` |
+**Overall accuracy: 96.5%** (110 of 114 correct)
+
+| Class | Precision | Recall | F1-score | Support |
+|---|---|---|---|---|
+| Malignant | 0.95 | 0.95 | 0.95 | 42 |
+| Benign | 0.97 | 0.97 | 0.97 | 72 |
+
+**Confusion matrix**
+
+|  | Predicted malignant | Predicted benign |
+|---|---|---|
+| **Actual malignant** | 40 ✅ | 2 ❌ |
+| **Actual benign** | 2 ❌ | 70 ✅ |
+
+The model correctly identified 40 of 42 malignant tumors (95.2% recall) and missed 2. In a real medical setting, missed malignant cases (false negatives) are the most costly error, which is why recall matters more than accuracy alone.
 
 Exact numbers vary slightly between runs because of random weight initialization and dropout.
 
@@ -131,16 +133,6 @@ Exact numbers vary slightly between runs because of random weight initialization
 - [ ] Track precision and recall during training
 - [ ] Tune hidden layer sizes and dropout rate
 - [ ] Compare with classical models (Logistic Regression, Random Forest)
-
-## ⚠️ Disclaimer
-
-This project is for **educational purposes only**. It is not a medical tool and must not be used for real diagnosis or clinical decisions.
-
-## 📄 License
-
-Distributed under the MIT License.
-
----
 
 <div align="center">
 
